@@ -81,7 +81,7 @@ alias(
 
 alias(
     name = "chrono",
-    actual = "@crate_index__chrono-0.4.31//:chrono",
+    actual = "@crate_index__chrono-0.4.40//:chrono",
     tags = ["manual"],
 )
 
@@ -220,6 +220,12 @@ alias(
 alias(
     name = "humantime-serde",
     actual = "@crate_index__humantime-serde-1.1.1//:humantime_serde",
+    tags = ["manual"],
+)
+
+alias(
+    name = "hwtrust",
+    actual = "@crate_index__hwtrust-0.1.0//:hwtrust",
     tags = ["manual"],
 )
 
