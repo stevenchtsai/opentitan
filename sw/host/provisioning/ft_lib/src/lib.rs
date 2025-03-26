@@ -398,19 +398,25 @@ fn provision_certificates(
             cert.cert_body
         };
 
+        let cert_format = match header.obj_type {
+            ObjType::UnendorsedX509Cert => Some(CertFormat::X509),
+            ObjType::EndorsedCwtCert => Some(CertFormat::Cwt),
+            _ => None,
+        };
+
         // Collect all DICE certs to validate the chain.
         // TODO(lowRISC/opentitan:#24281): Add CWT verifier
-        if dice_cert_names.contains(cert.cert_name)
-            && header.obj_type == ObjType::UnendorsedX509Cert
-        {
-            let ec = EndorsedCert {
-                format: CertFormat::X509,
-                name: cert.cert_name.to_string(),
-                bytes: cert_bytes.clone(),
-                ignore_critical: true,
-            };
-            response.certs.insert(ec.name.clone(), ec.clone());
-            dice_cert_chain.push(ec);
+        if dice_cert_names.contains(cert.cert_name) {
+            if let Some(format) = cert_format {
+                let ec = EndorsedCert {
+                    format,
+                    name: cert.cert_name.to_string(),
+                    bytes: cert_bytes.clone(),
+                    ignore_critical: true,
+                };
+                response.certs.insert(ec.name.clone(), ec.clone());
+                dice_cert_chain.push(ec);
+            }
         }
 
         // Ensure all certs parse with OpenSSL (even those that where endorsed on device).
