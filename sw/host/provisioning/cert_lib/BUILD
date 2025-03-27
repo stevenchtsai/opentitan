@@ -18,6 +18,7 @@ rust_library(
         "@crate_index//:base64ct",
         "@crate_index//:elliptic-curve",
         "@crate_index//:hex",
+        "@crate_index//:hwtrust",
         "@crate_index//:log",
         "@crate_index//:num-bigint-dig",
         "@crate_index//:openssl",

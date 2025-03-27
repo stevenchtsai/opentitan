@@ -26,7 +26,7 @@ use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
 
 /// Supported OpenTitan certificate formats.
-#[derive(Clone, Debug, ValueEnum, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
 pub enum CertFormat {
     X509,
     Cwt,

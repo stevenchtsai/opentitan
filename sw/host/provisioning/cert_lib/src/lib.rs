@@ -11,6 +11,8 @@ use std::process::Command;
 use anyhow::{bail, Context, Result};
 use base64ct::{Base64, Encoding};
 use elliptic_curve::SecretKey;
+use hwtrust::dice::ChainForm;
+use hwtrust::session::Session;
 use num_bigint_dig::BigUint;
 use openssl::ecdsa::EcdsaSig;
 use p256::ecdsa::SigningKey;
@@ -19,6 +21,7 @@ use serde::{Deserialize, Serialize, Serializer};
 
 use opentitanlib::crypto::sha256::Sha256Digest;
 use opentitanlib::util::tmpfilename;
+use ot_certs::cbor;
 use ot_certs::template::{EcdsaSignature, Signature, Value};
 use ot_certs::x509::generate_certificate_from_tbs;
 use ot_certs::CertFormat;
@@ -239,6 +242,40 @@ pub struct EndorsedCert {
     #[serde(serialize_with = "serialize_certificate")]
     pub bytes: Vec<u8>,
     pub ignore_critical: bool,
+}
+
+pub fn validate_cert_chain_cwt(cert_chain: &[EndorsedCert]) -> Result<()> {
+    if cert_chain.iter().any(|c| c.format != CertFormat::Cwt) {
+        bail!(
+            "Cannot verify the CWT cert chain mixed with other formats. {:?}",
+            cert_chain
+        );
+    }
+
+    let header = cbor::array_header(
+        cert_chain
+            .len()
+            .try_into()
+            .context("Cannot convert the size of cert chain from usize to u64.")?,
+    );
+
+    let mut bytes = header;
+
+    for cert in cert_chain {
+        bytes.append(&mut cert.bytes.clone());
+    }
+
+    let session = Session::default();
+    let chain =
+        ChainForm::from_cbor(&session, &bytes).context("Cannot parse the CBOR cert chain.")?;
+
+    println!("{chain:#?}");
+
+    if let ChainForm::Degenerate(_) = chain {
+        bail!("Degenerate DICE chain.");
+    }
+
+    Ok(())
 }
 
 /// Validate a chain of X.509 certificates against a provided CA certificate.

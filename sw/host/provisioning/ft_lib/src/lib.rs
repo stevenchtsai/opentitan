@@ -13,7 +13,10 @@ use anyhow::{anyhow, bail, Result};
 use arrayvec::ArrayVec;
 use zerocopy::AsBytes;
 
-use cert_lib::{parse_and_endorse_x509_cert, validate_cert_chain, CaConfig, CaKey, EndorsedCert};
+use cert_lib::{
+    parse_and_endorse_x509_cert, validate_cert_chain, validate_cert_chain_cwt, CaConfig, CaKey,
+    EndorsedCert,
+};
 use ft_ext_lib::ft_ext;
 use opentitanlib::app::TransportWrapper;
 use opentitanlib::console::spi::SpiConsoleDevice;
@@ -477,12 +480,24 @@ fn provision_certificates(
     // TODO(lowRISC/opentitan:#24281): Add CWT verifier
     let t0 = Instant::now();
     if !dice_cert_chain.is_empty() {
-        log::info!(
-            "Validating DICE certificate chain with OpenSSL (root CA: {:?}) ...",
-            dice_ca_cert
-        );
-        validate_cert_chain(dice_ca_cert.to_str().unwrap(), &dice_cert_chain)?;
-        log::info!("Success.");
+        match dice_cert_chain[0].format {
+            CertFormat::X509 => {
+                log::info!(
+                    "Validating DICE certificate chain with OpenSSL (root CA: {:?}) ...",
+                    dice_ca_cert
+                );
+                validate_cert_chain(dice_ca_cert.to_str().unwrap(), &dice_cert_chain)?;
+                log::info!("Success.");
+            }
+            CertFormat::Cwt => {
+                log::info!(
+                    "Validating DICE certificate chain with hwtrust ... {:?}",
+                    dice_ca_cert
+                );
+                validate_cert_chain_cwt(&dice_cert_chain)?;
+                log::info!("Success.");
+            }
+        }
     }
     response.stats.log_elapsed_time("perso-validate-dice", t0);
 
