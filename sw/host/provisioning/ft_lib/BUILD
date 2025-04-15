@@ -31,6 +31,7 @@ package(default_visibility = ["//visibility:public"])
             "@crate_index//:hmac",
             "@crate_index//:indexmap",
             "@crate_index//:log",
+            "@crate_index//:openssl",
             "@crate_index//:serde",
             "@crate_index//:serde_json",
             "@crate_index//:sha2",

@@ -11,14 +11,18 @@ use std::process::Command;
 use anyhow::{bail, Context, Result};
 use base64ct::{Base64, Encoding};
 use elliptic_curve::SecretKey;
+use hwtrust::dice::ChainForm;
+use hwtrust::session::Session;
 use num_bigint_dig::BigUint;
 use openssl::ecdsa::EcdsaSig;
+use openssl::pkey::{PKey, Public};
 use p256::ecdsa::SigningKey;
 use p256::NistP256;
 use serde::{Deserialize, Serialize, Serializer};
 
 use opentitanlib::crypto::sha256::Sha256Digest;
 use opentitanlib::util::tmpfilename;
+use ot_certs::cbor;
 use ot_certs::template::{EcdsaSignature, Signature, Value};
 use ot_certs::x509::generate_certificate_from_tbs;
 use ot_certs::CertFormat;
@@ -239,6 +243,52 @@ pub struct EndorsedCert {
     #[serde(serialize_with = "serialize_certificate")]
     pub bytes: Vec<u8>,
     pub ignore_critical: bool,
+}
+
+/// Validate a CWT DICE chain against a provided root public key.
+///
+/// A CWT DICE chain is validated against the root public key using 'hwtrust'.
+///
+/// Arguments:
+/// * root_key - The root public key.
+/// * cert_chain - A slice of EndorsedCert objects representing a chain ordered from root to leaf.
+pub fn validate_cwt_dice_chain(root_key: &PKey<Public>, cert_chain: &[EndorsedCert]) -> Result<()> {
+    if cert_chain.iter().any(|c| c.format != CertFormat::Cwt) {
+        bail!(
+            "A non-CWT cert found in the CWT cert chain. {:?}",
+            cert_chain
+        );
+    }
+
+    let header = cbor::array_header(
+        cert_chain
+            .len()
+            .try_into()
+            .context("Cannot convert the size of the cert chain from usize to u64.")?,
+    );
+
+    let mut bytes = header;
+
+    for cert in cert_chain {
+        bytes.append(&mut cert.bytes.clone());
+    }
+
+    let session = Session::default();
+    let chain = ChainForm::from_cbor(&session, &bytes).context("Not a valid CWT DICE chain.")?;
+
+    match chain {
+        ChainForm::Degenerate(_) => {
+            bail!("Degenerate CWT DICE chain.");
+        }
+        ChainForm::Proper(chain) => {
+            let cwt_root_key = chain.root_public_key().pkey();
+            if !cwt_root_key.public_eq(root_key) {
+                bail!("The root public key of the CWT DICE chain isn't expected.");
+            }
+        }
+    }
+
+    Ok(())
 }
 
 /// Validate a chain of X.509 certificates against a provided CA certificate.
