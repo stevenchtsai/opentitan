@@ -9,9 +9,8 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use arrayvec::ArrayVec;
-use openssl::x509::X509;
 use zerocopy::AsBytes;
 
 use cert_lib::{
@@ -532,17 +531,8 @@ fn provision_certificates(
 
     let t0 = Instant::now();
     if !dice_cert_chain_cwt.is_empty() {
-        let x509_leaf = dice_cert_chain
-            .last()
-            .context("X509 cert chain is empty while CWT cert chain exists.")?;
-        let x509_cert =
-            X509::from_der(&x509_leaf.bytes).context("Cannot parse X509 cert in DER.")?;
-        let root_key = x509_cert
-            .public_key()
-            .context("Cannot find public key in X509 cert chain.")?;
-
         log::info!("Validating DICE certificate chain with hwtrust ...");
-        validate_cwt_dice_chain(&root_key, &dice_cert_chain_cwt)?;
+        validate_cwt_dice_chain(&dice_cert_chain_cwt)?;
         log::info!("Success.");
     }
     response

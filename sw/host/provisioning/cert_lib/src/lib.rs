@@ -15,7 +15,6 @@ use hwtrust::dice::ChainForm;
 use hwtrust::session::Session;
 use num_bigint_dig::BigUint;
 use openssl::ecdsa::EcdsaSig;
-use openssl::pkey::{PKey, Public};
 use p256::ecdsa::SigningKey;
 use p256::NistP256;
 use serde::{Deserialize, Serialize, Serializer};
@@ -245,14 +244,13 @@ pub struct EndorsedCert {
     pub ignore_critical: bool,
 }
 
-/// Validate a CWT DICE chain against a provided root public key.
+/// Validate a CWT DICE chain.
 ///
-/// A CWT DICE chain is validated against the root public key using 'hwtrust'.
+/// A CWT DICE chain is validated using 'hwtrust'.
 ///
 /// Arguments:
-/// * root_key - The root public key.
 /// * cert_chain - A slice of EndorsedCert objects representing a chain ordered from root to leaf.
-pub fn validate_cwt_dice_chain(root_key: &PKey<Public>, cert_chain: &[EndorsedCert]) -> Result<()> {
+pub fn validate_cwt_dice_chain(cert_chain: &[EndorsedCert]) -> Result<()> {
     if cert_chain.iter().any(|c| c.format != CertFormat::Cwt) {
         bail!(
             "A non-CWT cert found in the CWT cert chain. {:?}",
@@ -276,16 +274,8 @@ pub fn validate_cwt_dice_chain(root_key: &PKey<Public>, cert_chain: &[EndorsedCe
     let session = Session::default();
     let chain = ChainForm::from_cbor(&session, &bytes).context("Not a valid CWT DICE chain.")?;
 
-    match chain {
-        ChainForm::Degenerate(_) => {
-            bail!("Degenerate CWT DICE chain.");
-        }
-        ChainForm::Proper(chain) => {
-            let cwt_root_key = chain.root_public_key().pkey();
-            if !cwt_root_key.public_eq(root_key) {
-                bail!("The root public key of the CWT DICE chain isn't expected.");
-            }
-        }
+    if matches!(chain, ChainForm::Degenerate(_)) {
+        bail!("Degenerate CWT DICE chain.");
     }
 
     Ok(())
