@@ -5,6 +5,9 @@
 use anyhow::Result;
 use arrayvec::ArrayVec;
 
-pub fn ft_ext(endorsed_cert_concat: ArrayVec<u8, 5120>) -> Result<ArrayVec<u8, 5120>> {
+use ujson_lib::provisioning_data::PersoBlob;
+
+pub fn ft_ext(endorsed_cert_concat: ArrayVec<u8, 5120>, received_perso_blob: &PersoBlob) -> Result<ArrayVec<u8, 5120>> {
+    let _ = received_perso_blob;
     Ok(endorsed_cert_concat)
 }
